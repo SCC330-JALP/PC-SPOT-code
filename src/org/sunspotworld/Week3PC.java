@@ -36,9 +36,7 @@ public class Week3PC implements Runnable
   }
   
   public void run()
-  {
-    ConnectionPC.startConnectionResponseServer(Integer.parseInt(storage.getOrCreateEntry("ZONE")), false);
-  }
+  { ConnectionProtocolPC.startConnectionResponseServer(Integer.parseInt(storage.getOrCreateEntry("ZONE")), false); }
   
   public static void printStreamData(DataInputStream inputStream) throws IOException
   {
