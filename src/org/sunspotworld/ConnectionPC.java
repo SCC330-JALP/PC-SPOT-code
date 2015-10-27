@@ -21,6 +21,9 @@ public class ConnectionPC
    * @param addr "broadcast", "" for listen or IEEEAddress to unicast
    */
   public ConnectionPC(String addr, int port, int radiogramSize)
+  { start(addr, port, radiogramSize); }
+  
+  public void start(String addr, int port, int radiogramSize)
   {
     try
     {

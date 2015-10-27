@@ -12,15 +12,12 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.Random;
 import javax.microedition.io.Connector;
-import static org.sunspotworld.ConnectionPC.BROADCAST;
-import static org.sunspotworld.ConnectionPC.LISTEN;
 
 /**
- *
  * @author Chicken
  */
 public class ConnectionProtocolPC
-{
+{ 
   private static final String FIND_CONNS = "find";
   private static final String STREAM_CONN = "strm";
   
@@ -29,7 +26,7 @@ public class ConnectionProtocolPC
   public static final int PORT_TO_PC_DATAGRAMS = 35;
   public static final int STREAM_PORT = 36;
   
-  private static void openStream(final String address)
+  private static void openStream(final String address, final String command)
   {
     new Thread(new Runnable()
     {
@@ -40,8 +37,7 @@ public class ConnectionProtocolPC
           DataInputStream inputStream = ((RadiostreamConnection) Connector.open("radiostream://" + address + ":" + STREAM_PORT))
               .openDataInputStream();
 
-          while(true)
-            Week3PC.printStreamData(inputStream);
+          Week3PC.handleStream(inputStream, address, command);
         }
         catch(IOException e)
         {
@@ -49,35 +45,35 @@ public class ConnectionProtocolPC
           e.printStackTrace(); 
         }
       }
-    }).start();
+    }, "Main Stream Thread").start();
   }
   
   private static void startConnectionResponseServer(final int zone)
   {
     Random random = new Random();
     random.setSeed(System.currentTimeMillis());
-    ConnectionPC listener = new ConnectionPC(LISTEN, PORT_BASE_SEARCH, 127);
-    ConnectionPC responder = new ConnectionPC(BROADCAST, PORT_BASE_SEARCH_RESPONSE, 10);
+    ConnectionPC listener = new ConnectionPC(ConnectionPC.LISTEN, PORT_BASE_SEARCH, 127);
 
     try
     {
       Radiogram radiogramReceive;
-      Radiogram radiogramSend = responder.getNewRadiogram();
-      radiogramSend.writeInt(zone);
 
       while(true)
       {
         radiogramReceive = listener.receive();
         String req = radiogramReceive.readUTF();
-        System.out.println("got request '" + req + "' from " + radiogramReceive.getAddress());
+        System.out.println("got request '" + req + "' from " + radiogramReceive.getAddress()); // TODO: remove
 
         if(req.equals(FIND_CONNS))
         {
+          ConnectionPC responder = new ConnectionPC(radiogramReceive.getAddress(), PORT_BASE_SEARCH_RESPONSE, 10);
+          responder.getNewRadiogram().writeInt(zone);
           Utils.sleep(random.nextInt(990) + 10);
           responder.send();
+          responder.close();
         }
-        else if(req.equals(STREAM_CONN))
-          openStream(radiogramReceive.getAddress());
+        else if(req.startsWith(STREAM_CONN))
+          openStream(radiogramReceive.getAddress(), req.replace(STREAM_CONN, ""));
         else
           System.out.println("\tSPOT " + radiogramReceive.getAddress() + " sent:\n\t" + req + "\n\tEND");
       }
@@ -97,7 +93,7 @@ public class ConnectionProtocolPC
       {
         public void run()
         { startConnectionResponseServer(zone); }
-      }).start();
+      }, "Connection Response Server").start();
     }
     else
       startConnectionResponseServer(zone);
