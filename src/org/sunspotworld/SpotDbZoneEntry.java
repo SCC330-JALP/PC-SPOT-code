@@ -1,15 +1,15 @@
 package org.sunspotworld;
 
-public class SPOTDBentry{
+public class SpotDbZoneEntry{
 
     private long timestamp;
     private double temp;
     private double light;
     private int zoneId;
 
-    public SPOTDBentry() {}
+    public SpotDbZoneEntry() {}
 
-    public SPOTDBentry(int zoneId, double temp, double light, long timestamp){
+    public SpotDbZoneEntry(int zoneId, double temp, double light, long timestamp){
         this.zoneId = zoneId;
         this.temp = temp;
         this.light = light;

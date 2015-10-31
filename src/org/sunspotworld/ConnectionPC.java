@@ -6,8 +6,7 @@ import javax.microedition.io.Connector;
 
 /**
  * @author Povilas Marcinkevicius
- * 
- * @version 1.0.0
+ * @version 1.1.3
  */
 public class ConnectionPC
 {

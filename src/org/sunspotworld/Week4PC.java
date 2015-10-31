@@ -1,20 +1,19 @@
-/**
-* @author Povilas Marcinkevicius
-**/
-
 package org.sunspotworld;
 
 import com.sun.spot.peripheral.ota.OTACommandServer;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.text.SimpleDateFormat;
 
-public class Week3PC implements Runnable
-{ 
+/**
+* @author Povilas Marcinkevicius
+* @version 1.2.1
+**/
+public class Week4PC implements Runnable
+{
   private static final Storage storage = new Storage();                                           // Could be replaced by firebase?
-  private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd hh:mm:ss"); // For printing; unused in final release
-  private static final SimpleDateFormat hourFormat = new SimpleDateFormat("hh");                  // for determining hour change
+  private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss"); // For printing; unused in final release
+  private static final SimpleDateFormat hourFormat = new SimpleDateFormat("HH");                  // for determining hour change
   private static String currentHour = hourFormat.format(System.currentTimeMillis());              // current hour saved
 
   public static final String COMMAND_IDLE = "idle";
@@ -30,11 +29,11 @@ public class Week3PC implements Runnable
   public static void main(String[] args)
   {
     OTACommandServer.start("SwitchMonitorApplication"); // Base I think?
-    Week3PC switchMonitorApp = new Week3PC();           // Create object so the program does not end saying "no objects"?...
+    Week4PC switchMonitorApp = new Week4PC();           // Create object so the program does not end saying "no objects"?...
   }
   
   // Just starts the thread
-  public Week3PC()
+  public Week4PC()
   {
     try
     {
@@ -58,14 +57,28 @@ public class Week3PC implements Runnable
   // command: idle if onSpotBoot and whatever it is otherwise
   public static void handleStream(final DataInputStream inputStream, String address, String command) throws IOException
   {
+    final String firebaseSpotAddress = address.replace(".", " ");
+    System.out.println("Address for firebase: " + firebaseSpotAddress);
     boolean firstCall = command.isEmpty();
     if(firstCall)
     {
-      command = COMMAND_SENSOR_EVENT + "" + SENSOR_MOTION; // TODO: get actual command from firebase
+      // TODO: get SPOT data with Liams' code to get value from firebase
+      if(false /* retireved data is null i.e. no such SPOT in firebase */)
+      {
+        System.out.println("SPOT was not in firebase");
+        command = COMMAND_IDLE;
+        // Add the SPOT to the firebase using Liams' code
+      }
+      else
+      {
+        System.out.println("SPOT was in firebase, got command from there");
+        // extract command string from the SPOT data gotten from firebasecommand = spotData.getTask();
+      }
+      
       ConnectionPC commandConn = new ConnectionPC(address, PORT_COMMAND_RELAY, 10);
       commandConn.getNewRadiogram().writeUTF(command);
-      try { Thread.sleep(2000); } catch (InterruptedException e) {}
-        inputStream.close();//this?
+      try { Thread.sleep(3000); } catch (InterruptedException e) {}
+        inputStream.close();
       System.out.println("Sending startup command " + command);
       commandConn.send();
       commandConn.close();
@@ -79,7 +92,7 @@ public class Week3PC implements Runnable
         if(finalCommand.equals(COMMAND_ZONE_DATA))
           handleZoneDataStream(inputStream);
         else if(finalCommand.charAt(0) == COMMAND_SENSOR_EVENT)
-          handleSensorTriggerStream(inputStream);
+          handleSensorTriggerStream(inputStream, firebaseSpotAddress);
       }
     }, "Stream Data Listener");
     listenerThread.start();
@@ -87,16 +100,34 @@ public class Week3PC implements Runnable
     // ON CHANGED SPOT ROLE TODO
     if(!firstCall)
     {
-          try { Thread.sleep(30000); } catch (Exception e) {}
-          inputStream.close();
-          
-          ConnectionPC commandConn = new ConnectionPC(address, PORT_COMMAND_RELAY, 10);
-          commandConn.getNewRadiogram().writeUTF(COMMAND_ZONE_DATA);
-          System.out.println("Sending changed command " + COMMAND_ZONE_DATA + " from " + Thread.currentThread().toString() + " aka " + Thread.currentThread().getName());
-          commandConn.send();
-          commandConn.close();
+      try
+      { Thread.sleep(30000); }
+      catch (InterruptedException ex)
+      { ex.printStackTrace(); }
+      
+      inputStream.close();
+      ConnectionPC commandConn = new ConnectionPC(address.replace(" ", "."), PORT_COMMAND_RELAY, 10);
+      commandConn.getNewRadiogram().writeUTF(COMMAND_ZONE_DATA);
+      System.out.println("Sending changed command " + COMMAND_ZONE_DATA);
+      commandConn.send();
+      commandConn.close();
     }
+    
+    // Execute the following code when the data on firebase changes. Use Liams' code
+    /*try
+      {
+        inputStream.close();
+        ConnectionPC commandConn = new ConnectionPC(address.replace(" ", "."), PORT_COMMAND_RELAY, 10);
+        commandConn.getNewRadiogram().writeUTF(COMMAND_ZONE_DATA);
+        System.out.println("Sending changed command " + COMMAND_ZONE_DATA);
+        commandConn.send();
+        commandConn.close();
+      }
+      catch(IOException e)
+      { e.printStackTrace(); }*/
   }
+  
+  
   
   // Used when the SPOT is transmitting zone data
   private static void handleZoneDataStream(DataInputStream inputStream)
@@ -112,13 +143,13 @@ public class Week3PC implements Runnable
         double temp = inputStream.readDouble();
         long timeStamp = inputStream.readLong();
 
-        db.update(Integer.parseInt(storage.getOrCreateEntry("ZONE")), temp, light, timeStamp);
+        db.updateZoneData(Integer.parseInt(storage.getOrCreateEntry("ZONE")), temp, light, timeStamp);
 
         String currentNewHour = hourFormat.format(System.currentTimeMillis());
         if(!currentNewHour.equals(currentHour))
         {
           currentHour = currentNewHour;
-          dbHourly.update(Integer.parseInt(storage.getOrCreateEntry("ZONE")), temp, light, timeStamp); 
+          dbHourly.updateZoneData(Integer.parseInt(storage.getOrCreateEntry("ZONE")), temp, light, timeStamp); 
         }
       }
       catch(InterruptedException e)
@@ -132,7 +163,7 @@ public class Week3PC implements Runnable
   }
   
   // Used when the SPOT is transmitting sensor detections
-  private static void handleSensorTriggerStream(DataInputStream inputStream)
+  private static void handleSensorTriggerStream(DataInputStream inputStream, String spotAddress)
   {
     // Open DB connection TODO
     while(true)
@@ -140,10 +171,7 @@ public class Week3PC implements Runnable
       try
       {
         long timeStamp = inputStream.readLong();
-
-        // Upload to DB TODO
-
-        // TODO: remove
+        // push reading to firebase using Liams' code
         System.out.println("Sensor event at " + dateFormat.format(timeStamp));
       }
       catch(IOException e)

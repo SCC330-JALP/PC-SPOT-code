@@ -14,7 +14,8 @@ import java.util.Random;
 import javax.microedition.io.Connector;
 
 /**
- * @author Chicken
+ * @author Povilas Marcinkevicius
+ * @version 1.1.2
  */
 public class ConnectionProtocolPC
 { 
@@ -37,7 +38,7 @@ public class ConnectionProtocolPC
           DataInputStream inputStream = ((RadiostreamConnection) Connector.open("radiostream://" + address + ":" + STREAM_PORT))
               .openDataInputStream();
 
-          Week3PC.handleStream(inputStream, address, command);
+          Week4PC.handleStream(inputStream, address, command);
         }
         catch(IOException e)
         {

@@ -8,17 +8,17 @@ public class SPOTDBcommunication{
 
     public static Firebase ref = new Firebase("https://sunsspot.firebaseio.com/");
     public Firebase logRef = null;
-    public SPOTDBentry newEntry = null;
+    public SpotDbZoneEntry newEntry = null;
 
     public SPOTDBcommunication(String childName){
       logRef = ref.child(childName);
     }
 
-    public void update(int zoneId, double temp, double light, long timestamp) throws InterruptedException{
+    public void updateZoneData(int zoneId, double temp, double light, long timestamp) throws InterruptedException{
 
         final CountDownLatch done = new CountDownLatch(1);
 
-        newEntry = new SPOTDBentry(zoneId, temp, light, timestamp);
+        newEntry = new SpotDbZoneEntry(zoneId, temp, light, timestamp);
 
         logRef.push().setValue(newEntry, new Firebase.CompletionListener() {
             @Override
@@ -30,7 +30,7 @@ public class SPOTDBcommunication{
         done.await();
     }
 
-    public void remove(final long rangeInMiliseconds){
+    public void removeOldZoneEntries(final long rangeInMiliseconds){
         logRef.addValueEventListener(new ValueEventListener() {
               
               @Override
@@ -38,7 +38,7 @@ public class SPOTDBcommunication{
                   // System.out.println("Total childs: " + snapshot.getChildrenCount());
 
                   for (DataSnapshot entrySnapshot: snapshot.getChildren()) {
-                    SPOTDBentry entry = entrySnapshot.getValue(SPOTDBentry.class);
+                    SpotDbZoneEntry entry = entrySnapshot.getValue(SpotDbZoneEntry.class);
 
                     if(entry.getTimestamp() < (System.currentTimeMillis() - rangeInMiliseconds) )
                         entrySnapshot.getRef().removeValue();

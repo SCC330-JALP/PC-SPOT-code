@@ -16,6 +16,7 @@ import java.util.Scanner;
 
 /**
  * @author Povilas Marcinkevicius
+ * @version 1.0.0
  */
 public class Storage
 {
