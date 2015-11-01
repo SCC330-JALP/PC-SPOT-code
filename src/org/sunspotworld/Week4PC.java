@@ -50,7 +50,10 @@ public class Week4PC implements Runnable
   // INIT end
   
   public void run()
-  { ConnectionProtocolPC.startConnectionResponseServer(Integer.parseInt(storage.getOrCreateEntry("ZONE")), false); }
+  {
+    System.out.println("Using Base Station " + System.getProperty("IEEE_ADDRESS"));
+    ConnectionProtocolPC.startConnectionResponseServer(Integer.parseInt(storage.getOrCreateEntry("ZONE")), false);
+  }
   
   // Used by ConnectionProtocolPC.startConnectionResponseServer()
   // onSpotBoot: means this is the first on and spot needs instructions
@@ -72,7 +75,7 @@ public class Week4PC implements Runnable
       else
       {
         System.out.println("SPOT was in firebase, got command from there");
-        // extract command string from the SPOT data gotten from firebasecommand = spotData.getTask();
+        command = COMMAND_ZONE_DATA; // TODO extract command string from the SPOT data gotten from firebase   command = spotData.getTask();
       }
       
       ConnectionPC commandConn = new ConnectionPC(address, PORT_COMMAND_RELAY, 10);
@@ -97,24 +100,11 @@ public class Week4PC implements Runnable
     }, "Stream Data Listener");
     listenerThread.start();
     
-    // ON CHANGED SPOT ROLE TODO
+    // Execute the following code when the data on firebase changes. Use Liams' code
+    /*
     if(!firstCall)
     {
       try
-      { Thread.sleep(30000); }
-      catch (InterruptedException ex)
-      { ex.printStackTrace(); }
-      
-      inputStream.close();
-      ConnectionPC commandConn = new ConnectionPC(address.replace(" ", "."), PORT_COMMAND_RELAY, 10);
-      commandConn.getNewRadiogram().writeUTF(COMMAND_ZONE_DATA);
-      System.out.println("Sending changed command " + COMMAND_ZONE_DATA);
-      commandConn.send();
-      commandConn.close();
-    }
-    
-    // Execute the following code when the data on firebase changes. Use Liams' code
-    /*try
       {
         inputStream.close();
         ConnectionPC commandConn = new ConnectionPC(address.replace(" ", "."), PORT_COMMAND_RELAY, 10);
@@ -124,7 +114,9 @@ public class Week4PC implements Runnable
         commandConn.close();
       }
       catch(IOException e)
-      { e.printStackTrace(); }*/
+      { e.printStackTrace(); }
+    }
+    */
   }
   
   

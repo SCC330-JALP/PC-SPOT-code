@@ -7,11 +7,10 @@ package org.sunspotworld;
 
 import com.sun.spot.io.j2me.radiogram.Radiogram;
 import com.sun.spot.io.j2me.radiostream.RadiostreamConnection;
-import com.sun.spot.util.Utils;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.util.Random;
 import javax.microedition.io.Connector;
+import java.util.HashMap;
 
 /**
  * @author Povilas Marcinkevicius
@@ -19,13 +18,16 @@ import javax.microedition.io.Connector;
  */
 public class ConnectionProtocolPC
 { 
-  private static final String FIND_CONNS = "find";
+  private static final String STREAM_KILL = "kill";
   private static final String STREAM_CONN = "strm";
   
   public static final int PORT_BASE_SEARCH = 33;
   public static final int PORT_BASE_SEARCH_RESPONSE = 34;
   public static final int PORT_TO_PC_DATAGRAMS = 35;
   public static final int STREAM_PORT = 36;
+  
+  public static final int BROADCAST_PERIOD = 4000;
+  public static final HashMap<String, DataInputStream> streamMap = new HashMap<String, DataInputStream>();
   
   private static void openStream(final String address, final String command)
   {
@@ -37,6 +39,7 @@ public class ConnectionProtocolPC
         {
           DataInputStream inputStream = ((RadiostreamConnection) Connector.open("radiostream://" + address + ":" + STREAM_PORT))
               .openDataInputStream();
+          streamMap.put(address, inputStream);
 
           Week4PC.handleStream(inputStream, address, command);
         }
@@ -51,10 +54,29 @@ public class ConnectionProtocolPC
   
   private static void startConnectionResponseServer(final int zone)
   {
-    Random random = new Random();
-    random.setSeed(System.currentTimeMillis());
+    // Start thread broadcasting constantly
+    new Thread(new Runnable()
+    {
+      public void run()
+      {
+        try
+        {
+          ConnectionPC responder = new ConnectionPC(ConnectionPC.BROADCAST, PORT_BASE_SEARCH_RESPONSE, 10);
+          responder.getNewRadiogram().writeInt(zone);
+          System.out.println("Broadcast poller initiated");
+          while(true)
+          {
+            responder.send();
+            Thread.sleep(BROADCAST_PERIOD);
+          }
+        }
+        catch(Exception e)
+        { e.printStackTrace(); }
+      }
+    }, "Zone Poller Thread").start();
+    
+    // Forever listen for requests
     ConnectionPC listener = new ConnectionPC(ConnectionPC.LISTEN, PORT_BASE_SEARCH, 127);
-
     try
     {
       Radiogram radiogramReceive;
@@ -63,20 +85,13 @@ public class ConnectionProtocolPC
       {
         radiogramReceive = listener.receive();
         String req = radiogramReceive.readUTF();
-        System.out.println("got request '" + req + "' from " + radiogramReceive.getAddress()); // TODO: remove
 
-        if(req.equals(FIND_CONNS))
-        {
-          ConnectionPC responder = new ConnectionPC(radiogramReceive.getAddress(), PORT_BASE_SEARCH_RESPONSE, 10);
-          responder.getNewRadiogram().writeInt(zone);
-          Utils.sleep(random.nextInt(990) + 10);
-          responder.send();
-          responder.close();
-        }
-        else if(req.startsWith(STREAM_CONN))
-          openStream(radiogramReceive.getAddress(), req.replace(STREAM_CONN, ""));
-        else
-          System.out.println("\tSPOT " + radiogramReceive.getAddress() + " sent:\n\t" + req + "\n\tEND");
+        String address = radiogramReceive.getAddress();
+        System.out.println("\tSPOT " + address + ": " + req);
+        if(req.startsWith(STREAM_CONN))
+          openStream(address, req.replace(STREAM_CONN, ""));
+        else if(req.equals(STREAM_KILL) && streamMap.containsKey(address))
+          streamMap.remove(address).close();
       }
     }
     catch(IOException e)
