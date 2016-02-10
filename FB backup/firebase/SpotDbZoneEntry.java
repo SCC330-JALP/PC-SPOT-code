@@ -1,16 +1,17 @@
-package org.sunspotworld;
+package org.sunspotworld.firebase;
 
-public class SpotDbZoneEntry{
-
+/**
+ * @author Anson Cheung
+ */
+public class SpotDbZoneEntry
+{
     private long timestamp;
     private double temp;
     private double light;
-    private int zoneId;
 
     public SpotDbZoneEntry() {}
 
-    public SpotDbZoneEntry(int zoneId, double temp, double light, long timestamp){
-        this.zoneId = zoneId;
+    public SpotDbZoneEntry(double temp, double light, long timestamp){
         this.temp = temp;
         this.light = light;
         this.timestamp = timestamp;
@@ -26,9 +27,5 @@ public class SpotDbZoneEntry{
 
     public double getLight(){
         return light;
-    }
-
-    public int getZoneId(){
-        return zoneId;
     }
 }

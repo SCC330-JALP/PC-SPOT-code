@@ -3,11 +3,11 @@
     <type>org.netbeans.modules.ant.freeform</type>
     <configuration>
         <general-data xmlns="http://www.netbeans.org/ns/freeform-project/1">
-            <name>Week3PC</name>
+            <name>331BASE</name>
         </general-data>
         <general-data xmlns="http://www.netbeans.org/ns/freeform-project/2">
             <!--Do not use Project Properties customizer when editing this file manually.-->
-            <name>Week3PC</name>
+            <name>331BASE</name>
             <properties>
                 <property-file>${user.home}/.sunspot.properties</property-file>
                 <property-file>build.properties</property-file>
@@ -76,9 +76,9 @@
                 </items>
                 <context-menu>
                     <ide-action name="build"/>
-                    <ide-action name="run"/>
-                    <ide-action name="clean"/>
                     <ide-action name="rebuild"/>
+                    <ide-action name="clean"/>
+                    <ide-action name="run"/>
                     <ide-action name="debug"/>
                 </context-menu>
             </view>
@@ -87,7 +87,7 @@
         <java-data xmlns="http://www.netbeans.org/ns/freeform-project-java/1">
             <compilation-unit>
                 <package-root>src</package-root>
-                <classpath mode="compile">C;Program FilesNetBeans 8.0.2platformmodulesextswing-layout-1.0.4.jar;C;Program FilesNetBeans 8.0.2javamodulesextAbsoluteLayout.jar;D:/Programs/SunSpotSDK/lib/multihop_common.jar;D:/Programs/SunSpotSDK/lib/ipv6lib_common.jar;D:/Programs/SunSpotSDK/lib/spotlib_host.jar;D:/Programs/SunSpotSDK/lib/spotlib_common.jar;D:/Programs/SunSpotSDK/lib/squawk_common.jar;D:/Programs/SunSpotSDK/lib/RXTXcomm.jar;D:/Programs/SunSpotSDK/lib/spotclient_host.jar;D:/Programs/SunSpotSDK/lib/signing_host.jar;	;C:\Program Files (x86)\Java\jdk1.6.0_22\lib\firebase.jar</classpath>
+                <classpath mode="compile">D:/Programs/SunSpotSDK/lib/multihop_common.jar;D:/Programs/SunSpotSDK/lib/ipv6lib_common.jar;D:/Programs/SunSpotSDK/lib/spotlib_host.jar;D:/Programs/SunSpotSDK/lib/spotlib_common.jar;D:/Programs/SunSpotSDK/lib/squawk_common.jar;D:/Programs/SunSpotSDK/lib/RXTXcomm.jar;D:/Programs/SunSpotSDK/lib/spotclient_host.jar;D:/Programs/SunSpotSDK/lib/signing_host.jar;	;C:\Program Files (x86)\Java\jdk1.6.0_22\lib\firebase.jar;commons-lang3-3.4.jar</classpath>
                 <built-to>build</built-to>
                 <source-level>1.5</source-level>
             </compilation-unit>

@@ -1,117 +1,97 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.sunspotworld;
 
 import com.sun.spot.io.j2me.radiogram.Radiogram;
-import com.sun.spot.io.j2me.radiostream.RadiostreamConnection;
-import java.io.DataInputStream;
+import com.sun.spot.util.Utils;
 import java.io.IOException;
-import javax.microedition.io.Connector;
 import java.util.HashMap;
+import java.util.Random;
 
 /**
  * @author Povilas Marcinkevicius
- * @version 1.1.2
+ * @version 1.1.11
+ * 
+ * PSP LOC: 26
  */
 public class ConnectionProtocolPC
-{ 
-  private static final String STREAM_KILL = "kill";
-  private static final String STREAM_CONN = "strm";
+{
+  private static final String REQUEST_INTRODUCTION = "intr";
+  private static final String REQUEST_ESTABLISH_CONNECTION = "conn";
+  private static final String RESPONSE_CONFIRM_CONNECTION = "cnok";
   
-  public static final int PORT_BASE_SEARCH = 33;
-  public static final int PORT_BASE_SEARCH_RESPONSE = 34;
-  public static final int PORT_TO_PC_DATAGRAMS = 35;
-  public static final int STREAM_PORT = 36;
+  public static final int PORT_NEW_SPOT_LISTEN = 33;
+  public static final int PORT_NEW_SPOT_RESPOND = 34;
+  public static final int PORT_LISTEN_SPOT_DATA = 36;
   
-  public static final int BROADCAST_PERIOD = 4000;
-  public static final HashMap<String, DataInputStream> streamMap = new HashMap<String, DataInputStream>();
+  public static final HashMap<String, ActiveSpotConnection> streamMap = new HashMap<String, ActiveSpotConnection>();
   
-  private static void openStream(final String address, final String command)
+  // Checks if there is stream leftover for the same address and port and removes it
+  // Creates a stream to the SPOT with the address provided
+  // Saves it in the stream list
+  // Launches the code in main function to handle the stream
+  private static void openStream(final String address)
   {
-    new Thread(new Runnable()
-    {
-      public void run()
-      {
-        try
-        {
-          DataInputStream inputStream = ((RadiostreamConnection) Connector.open("radiostream://" + address + ":" + STREAM_PORT))
-              .openDataInputStream();
-          streamMap.put(address, inputStream);
-
-          Week4PC.handleStream(inputStream, address, command);
-        }
-        catch(IOException e)
-        {
-          System.err.println("SPOT " + address + " Stream failed");
-          e.printStackTrace(); 
-        }
-      }
-    }, "Main Stream Thread").start();
-  }
-  
-  private static void startConnectionResponseServer(final int zone)
-  {
-    // Start thread broadcasting constantly
-    new Thread(new Runnable()
-    {
-      public void run()
-      {
-        try
-        {
-          ConnectionPC responder = new ConnectionPC(ConnectionPC.BROADCAST, PORT_BASE_SEARCH_RESPONSE, 10);
-          responder.getNewRadiogram().writeInt(zone);
-          System.out.println("Broadcast poller initiated");
-          while(true)
-          {
-            responder.send();
-            Thread.sleep(BROADCAST_PERIOD);
-          }
-        }
-        catch(Exception e)
-        { e.printStackTrace(); }
-      }
-    }, "Zone Poller Thread").start();
-    
-    // Forever listen for requests
-    ConnectionPC listener = new ConnectionPC(ConnectionPC.LISTEN, PORT_BASE_SEARCH, 127);
+    boolean confirmed = true;
     try
-    {
-      Radiogram radiogramReceive;
-
-      while(true)
-      {
-        radiogramReceive = listener.receive();
-        String req = radiogramReceive.readUTF();
-
-        String address = radiogramReceive.getAddress();
-        System.out.println("\tSPOT " + address + ": " + req);
-        if(req.startsWith(STREAM_CONN))
-          openStream(address, req.replace(STREAM_CONN, ""));
-        else if(req.equals(STREAM_KILL) && streamMap.containsKey(address))
-          streamMap.remove(address).close();
-      }
-    }
+    { RadiogramConnectionPC.sendSingleUtfMessage(150, address, PORT_NEW_SPOT_RESPOND, RESPONSE_CONFIRM_CONNECTION); }
     catch(IOException e)
     {
-      System.err.println("Failed on connection response server");
-      e.printStackTrace(); 
+      confirmed = false;
+      Logger.log(Logger.WARN, "Failed to confirm stream connection to SPOT " + address, true);
+      e.printStackTrace();
     }
-  }
-  
-  public static void startConnectionResponseServer(final int zone, final boolean newThread)
-  {
-    if(newThread)
+    
+    if(confirmed)
     {
       new Thread(new Runnable()
       {
         public void run()
-        { startConnectionResponseServer(zone); }
-      }, "Connection Response Server").start();
+        {
+          String address4char = address.substring(15);
+          if(streamMap.containsKey(address))
+          {
+            streamMap.get(address4char).close(); // No duplicates
+            streamMap.remove(address4char);
+            Utils.sleep(100);
+          }
+          
+          StreamConnectionIn inputStream = new StreamConnectionIn(address, PORT_LISTEN_SPOT_DATA);
+          streamMap.put(address4char, new ActiveSpotConnection(inputStream, address4char));
+          ScriptManager.spotsConnectedChanged();
+          Logger.log(Logger.INFO, "Added SPOT " + address4char, true);
+        }
+      }, "Main Stream Thread for SPOT " + address).start();
     }
-    else
-      startConnectionResponseServer(zone);
+  }
+  
+  // Initialises broadcaster for SPOTs to detect and starts listening for commands
+  public static void startConnectionResponseServer()
+  {
+    new Thread(new Runnable()
+    {
+      public void run()
+      {
+        RadiogramConnectionPC listener = new RadiogramConnectionPC(RadiogramConnectionPC.LISTEN, PORT_NEW_SPOT_LISTEN, 127);
+        try
+        {
+          Radiogram radiogramReceive;
+
+          while(true)
+          {
+            radiogramReceive = listener.receive();
+            String request = radiogramReceive.readUTF();
+            String address = radiogramReceive.getAddress(); // XXXX.XXXX.XXXX.XXXX
+            if(request.startsWith(REQUEST_INTRODUCTION))
+              RadiogramConnectionPC.sendSingleUtfMessage(Math.abs(new Random(System.currentTimeMillis()).nextInt()) % 75 + 50, address, PORT_NEW_SPOT_RESPOND, REQUEST_INTRODUCTION);
+            else if(request.startsWith(REQUEST_ESTABLISH_CONNECTION))
+              openStream(address);
+          }
+        }
+        catch(IOException e)
+        {
+          Logger.log(Logger.CRITICAL, "Response server failed", true);
+          e.printStackTrace(); 
+        }
+      }
+    }, "Connection Response Server").start();
   }
 }

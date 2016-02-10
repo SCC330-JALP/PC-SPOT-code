@@ -1,0 +1,77 @@
+Recursive bracket resolver that does not work
+
+/*public static boolean processCondition(String condition)
+  { return Boolean.parseBoolean(processStatement(condition)); }
+  
+  // recursively breaks brackets up
+  public static String processStatement(String statement)
+  {
+    System.out.println("Start with '" + statement + "'");
+    if(!statement.contains("("))
+      return comparison(statement);
+    
+    while(statement.contains("("))
+    {
+      int leftMinusRight = 1;
+      int leftBracketIndex = statement.indexOf("(");
+      int rightBracketIndex = leftBracketIndex;
+      while(leftMinusRight > 0)
+      {
+        rightBracketIndex++;
+        char c = statement.charAt(rightBracketIndex);
+        if(c == '(')
+          leftMinusRight++;
+        else if(c == ')')
+          leftMinusRight--;
+      }
+      
+      System.out.println("left: '" + statement.substring(0, leftBracketIndex) + "'");
+      System.out.println("middle: '" + statement.substring(leftBracketIndex + 1, rightBracketIndex) + "'");
+      System.out.println("right: '" + statement.substring(rightBracketIndex + 1) + "'");
+      System.out.println();
+      
+      statement = statement.substring(0, leftBracketIndex) +
+          processStatement(statement.substring(leftBracketIndex + 1, rightBracketIndex)) +
+          statement.substring(rightBracketIndex + 1); // also removes brackets concerned
+    }
+    
+    System.out.println("Finished with " + statement);
+    return statement;
+  }
+  
+  // selects and uses correct comparison function
+  public static String comparison(String task)
+  {
+    if(task.startsWith("not") || task.startsWith("true") || task.startsWith("false"))
+      return booleanComparison(task);
+    else
+      return numberComparison(task);
+  }
+  
+  // resolves arithmetic comparisons
+  public static String numberComparison(String task)
+  {
+    String[] numOpNum = task.split(" ");
+    double leftOperator = Double.parseDouble(numOpNum[0]);
+    double rightOperator = Double.parseDouble(numOpNum[2]);
+    return "" + (numOpNum[1].equals("<") ? leftOperator < rightOperator : leftOperator > rightOperator);
+  }
+  
+  // resolves boolean comparisons
+  public static String booleanComparison(String task)
+  {
+    String[] args = task.split(" ");
+    if(args.length == 2)
+      return args[1].equals("true") ? "false" : "true";
+    else
+    {
+      boolean leftArg = Boolean.parseBoolean(args[0]);
+      boolean rightArg = Boolean.parseBoolean(args[2]);
+      if(args[1].equals("and"))
+        return "" + (leftArg && rightArg);
+      if(args[1].equals("or"))
+        return "" + (leftArg || rightArg);
+      System.out.println("Failed to parse '" + task + "'");
+      return "wtf";
+    }
+  }*/
