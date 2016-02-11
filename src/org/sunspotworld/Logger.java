@@ -88,6 +88,7 @@ public final class Logger
     { frame.setIconImage(ImageIO.read(new File("INFO.png"))); }
     catch(IOException e)
     { e.printStackTrace(); }
+    
     scrollPane.setViewportView(logList);
     scrollPane.setPreferredSize(new Dimension(200, 1000));
     frame.setLayout(new BoxLayout(frame.getContentPane(), BoxLayout.Y_AXIS));

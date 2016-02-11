@@ -1,7 +1,6 @@
 package org.sunspotworld;
 
 import com.sun.spot.peripheral.ota.OTACommandServer;
-import com.sun.spot.util.Utils;
 import org.sunspotworld.firebase.*;
 
 /**
@@ -13,6 +12,8 @@ import org.sunspotworld.firebase.*;
 **/
 public class Base331 implements Runnable
 {
+  public static String BASE_MAC;
+  
   public static void main(String[] args)
   {
     OTACommandServer.start("SwitchMonitorApplication");
@@ -35,17 +36,17 @@ public class Base331 implements Runnable
   }
   
   public void run()
-  {    
-    //ScriptManager.scripts.put("TestScript", new Script("7ABD ALIVE and 7ABD MOTION < 20.0", "7ABD BEEP 1000 1000 1000 3", 30000, "TestScript"));
+  {
+    BASE_MAC = System.getProperty("IEEE_ADDRESS").substring(15);
 
+    FirebaseConnection.upload(true, FirebaseConnection.BRANCH_BASES.child(BASE_MAC), "Base put itself into the list");
+    
+    //FirebaseConnection.download(FirebaseConnection.BRANCH_REFS); // Only to trigger setup() which, in turn, gets user account data and logs in
     
     
     
-    
-    FirebaseConnection.download(FirebaseConnection.BRANCH_REFS); // Only to trigger setup() which, in turn, gets user account data and logs in
     ConnectionProtocolPC.startConnectionResponseServer();
-    String baseMac = System.getProperty("IEEE_ADDRESS").substring(15);
-    Logger.openWindow(baseMac);
+    Logger.openWindow(BASE_MAC);
     Logger.log(Logger.INFO, "started", true);
     ScriptManager.startManager();
   }

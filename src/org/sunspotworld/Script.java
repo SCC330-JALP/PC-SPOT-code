@@ -11,6 +11,8 @@ import javax.script.ScriptException;
 import org.apache.commons.lang3.StringUtils;
 import static org.sunspotworld.ActiveSpotConnection.CMD_SCRIPT;
 import static org.sunspotworld.ConnectionProtocolPC.streamMap;
+import org.sunspotworld.external.EasyBulb;
+import org.sunspotworld.external.Kettle;
 import org.sunspotworld.firebase.FirebaseConnection;
 import org.sunspotworld.firebase.OnSpotUpdate;
 import org.sunspotworld.firebase.SpotListeners;
@@ -23,12 +25,16 @@ import org.sunspotworld.firebase.SpotListeners;
  */
 public class Script implements OnSpotUpdate
 {
+  private static final String BASE_CMD_KETTLE = "KETTLE";
+  private static final String BASE_CMD_EASYBULB = "EASYBULB";
+  
   private static final ScriptEngineManager manager = new ScriptEngineManager();
   private static final ScriptEngine engine = manager.getEngineByName("js");
   
   private static final HashMap<String, String> valueToFirebaseNumber = new HashMap<String, String>();
   private static final HashMap<String, String> valueToFirebaseBoolean = new HashMap<String, String>();
   private static final HashMap<String, String> valueToFirebaseAny     = new HashMap<String, String>();
+  private static final ArrayList<String> VALID_BASE_COMMANDS = new ArrayList<String>();
   static
   {
     valueToFirebaseNumber.put("MOTION", FirebaseConnection.ELEMENT_MOTION);
@@ -46,12 +52,15 @@ public class Script implements OnSpotUpdate
     valueToFirebaseBoolean.put("BUTTON_RIGHT", FirebaseConnection.ELEMENT_BUTTON_RIGHT);
     valueToFirebaseAny.putAll(valueToFirebaseNumber);
     valueToFirebaseAny.putAll(valueToFirebaseBoolean);
+    
+    VALID_BASE_COMMANDS.add(BASE_CMD_KETTLE);
+    VALID_BASE_COMMANDS.add(BASE_CMD_EASYBULB);
   }
   
   public static boolean processCondition(String condition)
   {
     try
-    { return (Boolean)engine.eval(StringUtils.replaceEach(condition, new String[]{"and", "or", "not"}, new String[]{"&&", "||", "!"})); }
+    { return (Boolean)engine.eval(StringUtils.replaceEach(condition, new String[]{"AND", "OR", "NOT"}, new String[]{"&&", "||", "!"})); }
     catch (ScriptException e)
     { Logger.log(Logger.ERROR, "Failed to parse condition '" + condition + "'", true); }
     return false;
@@ -63,6 +72,7 @@ public class Script implements OnSpotUpdate
 
   private HashMap<String, HashMap<String, Object>> spots = new HashMap<String, HashMap<String, Object>>();
   private ArrayList<String> connectedSpotCommands = new  ArrayList<String>();
+  private ArrayList<String> baseCommands = new  ArrayList<String>();
   private String scriptName;
   private long timeout;
   private long lastTriggerTime = 0;
@@ -73,9 +83,9 @@ public class Script implements OnSpotUpdate
   public Script(Script script, String scriptName)
   {
     this.timeout = script.getTimeout();
-    this.condition = script.getCondition();
-    this.action = script.getAction();
-    this.scriptName = scriptName;
+    this.condition = script.getCondition().trim();
+    this.action = script.getAction().trim();
+    this.scriptName = scriptName.trim();
     
     addListeners();
     resetMySpots();
@@ -162,7 +172,7 @@ public class Script implements OnSpotUpdate
     boolean sendCommands = processCondition(replaced);
     System.out.println("Result for " + condition + " is '" + replaced + "' which is " + sendCommands);
     if(sendCommands)
-      sendCommandsToSpots();
+      executeAction();
   }
   
   private String insertValues(String condition)
@@ -192,40 +202,71 @@ public class Script implements OnSpotUpdate
   public void resetMySpots()
   {
     connectedSpotCommands.clear();
-    System.out.println(">>> reseting spots for scripts");
+    baseCommands.clear();
+    System.out.println(">>> reseting spots for script " + scriptName);
     for(String fullCommand: action.split("; "))
-      if(ConnectionProtocolPC.streamMap.containsKey(fullCommand.split(" ")[0])) // if the spot is connected
+      if(VALID_BASE_COMMANDS.contains(fullCommand.split(" ")[1]))
       {
-        connectedSpotCommands.add(fullCommand);
-        System.out.println(">>> added " + fullCommand); // TODO: remove
+        if(Base331.BASE_MAC.equals(fullCommand.split(" ")[0]))
+        {
+          baseCommands.add(fullCommand.substring(5)); // removes base address
+          System.out.println(">>> added base cmd " + fullCommand.substring(5)); // TODO: remove
+        }
+      }
+      else
+      {
+        if(ConnectionProtocolPC.streamMap.containsKey(fullCommand.split(" ")[0])) // if the spot is connected
+        {
+          connectedSpotCommands.add(fullCommand);
+          System.out.println(">>> added spot cmd " + fullCommand); // TODO: remove
+        }
       }
   }
   
-  private void sendCommandsToSpots()
+  private void executeAction()
   {
     long now = System.currentTimeMillis();
     if(lastTriggerTime + timeout < now)
     {
       lastTriggerTime = now;
-      
-      for(String fullCommand : connectedSpotCommands)
-      {
-        String spotName = fullCommand.substring(0, 4);
-        String command = fullCommand.substring(5);
+      sendCommandsToSpots();
+      executeBaseCommands();
+    }
+  }
+  
+  private void executeBaseCommands()
+  {
+    for(String command: baseCommands)
+    {
+      System.out.println("Executing Base Command: " + command);
+      String[] words = command.split(" ");
+      String commandCut = command.substring(words[0].length() + 1);
+      if(words[0].equals(BASE_CMD_KETTLE))
+        Kettle.processScript(commandCut.split(" "));
+      else if(words[0].equals(BASE_CMD_EASYBULB))
+        EasyBulb.processScript(commandCut.split(" "));
+    }
+  }
+  
+  private void sendCommandsToSpots()
+  {
+    for(String fullCommand : connectedSpotCommands)
+    {
+      String spotName = fullCommand.substring(0, 4);
+      String command = fullCommand.substring(5);
 
-        System.out.println(spotName + "< name | cmd >" + command);
-        
-        DataOutputStream outputStream = streamMap.get(spotName).streamOut.getConn();
-        try
-        {
-          outputStream.writeByte(CMD_SCRIPT);
-          outputStream.writeUTF(command);
-          outputStream.flush();
-        }
-        catch(IOException e)
-        { Logger.log(Logger.ERROR, "Failed to send script to SPOT " + spotName, true); }
-        streamMap.get(spotName).streamOut.done();
+      System.out.println(spotName + "< name | cmd >" + command);
+
+      DataOutputStream outputStream = streamMap.get(spotName).streamOut.getConn();
+      try
+      {
+        outputStream.writeByte(CMD_SCRIPT);
+        outputStream.writeUTF(command);
+        outputStream.flush();
       }
+      catch(IOException e)
+      { Logger.log(Logger.ERROR, "Failed to send script to SPOT " + spotName, true); }
+      streamMap.get(spotName).streamOut.done();
     }
   }
   

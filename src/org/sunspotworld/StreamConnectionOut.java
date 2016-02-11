@@ -26,7 +26,7 @@ public class StreamConnectionOut
     }
     catch(IOException e)
     {
-      System.err.println("Failed to create stream connection for " + addr + ":" + port);
+      Logger.log(Logger.ERROR, "Failed to create stream connection for " + addr + ":" + port , true);
       e.printStackTrace();
     }
   }
@@ -42,7 +42,7 @@ public class StreamConnectionOut
       }
     }
     catch (InterruptedException e)
-    { System.out.println("getConn() sleep interrupted"); }
+    { Logger.log(Logger.ERROR, "Connection lock has been broken", true); }
     receiving = true;
     return conn;
   }
@@ -56,7 +56,7 @@ public class StreamConnectionOut
     { conn.close(); }
     catch(IOException e)
     {
-      System.err.println("Failed to close connection");
+      Logger.log(Logger.ERROR, "Failed to close connection", true);
       e.printStackTrace();
     }
   }

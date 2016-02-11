@@ -25,6 +25,7 @@ public final class FirebaseConnection
   public static final Firebase FIREBASE = new Firebase("https://sunsspot.firebaseio.com/users/" + setup() + "/data/");
   public static final Firebase BRANCH_READINGS = FIREBASE.child("readings");
   public static final Firebase BRANCH_SPOTS = FIREBASE.child("spots");
+  public static final Firebase BRANCH_BASES = FIREBASE.child("bases");
   public static final Firebase BRANCH_SCRIPTS = FIREBASE.child("scripts");
   public static final Firebase BRANCH_REFS = new Firebase("https://sunsspot.firebaseio.com/usersRef/");
   //public static final Firebase BRANCH_BUZZ = FIREBASE.child("buzz");

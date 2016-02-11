@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import org.sunspotworld.Logger;
 
@@ -25,7 +26,7 @@ public class Kettle
   private static final int HOST_PORT = 2000;  
   private static final String OUTPUT_PREFIX = "set sys output 0x";
   private static final String INPUT_PREFIX = "sys status 0x";
-  private static final HashMap<Integer, String> mapOut = new HashMap<Integer, String>();
+  private static final HashMap<String, String> mapOut = new HashMap<String, String>();
   private static final HashMap<String, String> mapIn = new HashMap<String, String>();
   private static final ArrayList<Listener> subscribers = new ArrayList<Listener>();
   
@@ -34,10 +35,10 @@ public class Kettle
   private static BufferedReader kettleIn;
   private static boolean exists = true;
   
-  public static final int TEMP_100 = 100;
-  public static final int TEMP_95 = 95;
-  public static final int TEMP_80 = 80;
-  public static final int TEMP_65 = 65;
+  public static final String TEMP_100 = "100";
+  public static final String TEMP_95 = "95";
+  public static final String TEMP_80 = "80";
+  public static final String TEMP_65 = "65";
   
   public static final String TIME_NONE = "8";
   public static final String TIME_5_MINS = "8005";
@@ -76,6 +77,7 @@ public class Kettle
       exists = kettleIn.readLine().equals("HELLOAPP");
       
       startListener();
+      Logger.log(Logger.INFO, "Smart kettle detected in the network!", true);
     }
     catch (IOException e)
     { exists = false; }
@@ -101,19 +103,21 @@ public class Kettle
             }
           }
           catch(IOException e)
-          { Logger.log(Logger.ERROR, "Kettle listener encountered an issue", true); }
+          { Logger.log(Logger.ERROR, "Kettle listener encountered an issue and terminated", true); }
         }
       }
     }, "Kettle listener thread").start();
   }
   
-  public static void boilKettle(int temperature)
+  public static void boilKettle(String temperature)
   {
     if(exists)
     {
       if(!mapOut.containsKey(temperature))
-        throw new IllegalArgumentException("Provided temperature value is not one of the TEMP_XXX values");
-
+      {
+        Logger.log(Logger.WARN, "Attempted to boil kettle with temperature " + temperature + ". Valid values: 65, 80, 95, 100", true);
+        return;
+      }
       kettleOut.println(OUTPUT_PREFIX + "4");
       Utils.sleep(50);
       kettleOut.println(OUTPUT_PREFIX + mapOut.get(temperature));
@@ -122,9 +126,21 @@ public class Kettle
 
   public static void setWarmOn(String time)
   {
-    kettleOut.println(OUTPUT_PREFIX + "4");
-    Utils.sleep(50);
-    kettleOut.println(OUTPUT_PREFIX + time);
+    if(exists)
+    {
+      if(Arrays.asList(new String[]{"0", "5", "10", "20"}).contains(time))
+      {
+        Logger.log(Logger.INFO, "Kettle WARM operation was given argument '" + time + "'. Valid values: 0, 5, 10 and 20", true);
+        return;
+      }
+      
+      kettleOut.println(OUTPUT_PREFIX + "4");
+      Utils.sleep(50);
+      kettleOut.println(OUTPUT_PREFIX + "8");
+      Utils.sleep(50);
+      if(!time.equals("0"))
+        kettleOut.println(OUTPUT_PREFIX + "8" + String.format("%03d", Integer.parseInt(time)));
+    }
   }
   
   public static void turnOffKettle()
@@ -146,5 +162,18 @@ public class Kettle
   {
     if(subscribers.contains(subscriber) && exists)
       subscribers.remove(subscriber);
+  }
+
+  public static void processScript(String[] args)
+  {
+    if(!Arrays.asList(new String[]{"BOIL", "WARM", "OFF"}).contains(args[0]))
+      Logger.log(Logger.INFO, "Kettle command provided: '" + args[0] + "'. Valid commands: BOIL, WARM, OFF.", true);
+      
+    if(args[0].equals("BOIL"))
+      boilKettle(args[1]);
+    else if(args[0].equals("WARM"))
+      setWarmOn(args[1]);
+    else if(args[0].equals("OFF"))
+      turnOffKettle();
   }
 }
